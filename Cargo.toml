@@ -1,0 +1,24 @@
+[package]
+name = "oxiplate-derive"
+description = "Procedural macro for Oxiplate."
+version = "0.1.0"
+authors = ["Brandon Frohs <brandon@19.codes>"]
+repository = "https://github.com/0b10011/oxiplate"
+categories = ["template-engine"]
+keywords = ["escaping", "whitespace-control", "compile-time"]
+license = "MIT"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+nom = "7.1"
+proc-macro2 = { version = "1.0.92", features = ["nightly", "span-locations"] }
+quote = "1.0.37"
+serde = { version = "1.0.217", features = ["derive", "serde_derive"] }
+syn = { version = "2.0.91", features = ["full"] }
+toml = "0.8.19"
+
+[dev-dependencies]
+trybuild = "1.0.101"
