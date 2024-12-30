@@ -43,7 +43,7 @@ impl ToTokens for Writ<'_> {
         let escaper = &self.1;
 
         tokens.append_all(quote! {
-            write!(f, "{}", ::oxiplate::escape(#escaper, #text))?;
+            write!(f, "{}", ::oxiplate::escape(&#escaper, #text))?;
         });
     }
 }
