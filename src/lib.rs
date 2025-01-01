@@ -37,7 +37,6 @@ use std::iter::Enumerate;
 use std::ops::Range;
 use std::ops::RangeFrom;
 use std::ops::RangeTo;
-use std::path;
 use std::path::PathBuf;
 use std::str::CharIndices;
 use std::str::Chars;
@@ -472,9 +471,12 @@ fn parse(input: TokenStream) -> Result<TokenStream, syn::Error> {
     };
 
     let data_type = quote! { #ident #generics };
-    let config_path =
-        path::Path::new(&env::current_dir().expect("Failed to get current directory"))
-            .join("oxiplate.toml");
+    let root = PathBuf::from(
+        env::var("CARGO_MANIFEST_DIR_OVERRIDE")
+            .or(env::var("CARGO_MANIFEST_DIR"))
+            .unwrap(),
+    );
+    let config_path = root.join("oxiplate.toml");
     let config: Config = if let Ok(toml) = fs::read_to_string(config_path.clone()) {
         toml::from_str(&toml).expect("Failed to parse oxiplate.toml")
     } else {
