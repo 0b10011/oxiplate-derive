@@ -22,14 +22,34 @@ pub(crate) enum Item<'a> {
     CompileError(String, Source<'a>),
 }
 
+impl Item<'_> {
+    #[allow(clippy::option_option)]
+    pub(super) fn to_token(&self) -> Option<Option<TokenStream>> {
+        match self {
+            Item::Comment => Some(None),
+            Item::Writ(writ) => Some(Some(writ.to_token())),
+            Item::Statement(_statement) => None,
+            Item::Static(text) => Some(Some(text.to_token())),
+            Item::Whitespace(whitespace) => Some(Some(whitespace.to_token())),
+            Item::CompileError(_, _source) => None,
+        }
+    }
+}
+
 impl ToTokens for Item<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         tokens.append_all(match self {
             Item::Comment => quote! {},
-            Item::Writ(writ) => quote! { #writ },
+            Item::Writ(_writ) => {
+                unreachable!("Writs should be handled by `to_token()` instead")
+            }
             Item::Statement(statement) => quote! { #statement },
-            Item::Static(text) => quote! { #text },
-            Item::Whitespace(whitespace) => quote! { #whitespace },
+            Item::Static(_text) => {
+                unreachable!("Static text should be handled by `to_token()` instead")
+            }
+            Item::Whitespace(_whitespace) => {
+                unreachable!("Whitespace should be handled by `to_token()` instead")
+            }
             Item::CompileError(text, source) => {
                 let span = source.span();
                 quote_spanned! {span=> compile_error!(#text); }

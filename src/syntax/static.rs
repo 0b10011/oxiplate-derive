@@ -9,21 +9,22 @@ use nom::combinator::{eof, fail, peek, recognize};
 use nom::multi::many_till;
 use nom::{branch::alt, bytes::complete::take_while};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::quote_spanned;
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Static<'a>(pub &'a str, pub Source<'a>);
 
-impl<'a> From<Static<'a>> for Item<'a> {
-    fn from(r#static: Static<'a>) -> Self {
-        Item::Static(r#static)
+impl Static<'_> {
+    pub fn to_token(&self) -> TokenStream {
+        let text = &self.0;
+        let span = self.1.span();
+        quote_spanned! { span => #text }
     }
 }
 
-impl ToTokens for Static<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let text = &self.0;
-        tokens.append_all(quote! {write!(f, "{}", #text)?;});
+impl<'a> From<Static<'a>> for Item<'a> {
+    fn from(r#static: Static<'a>) -> Self {
+        Item::Static(r#static)
     }
 }
 

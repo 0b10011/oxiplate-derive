@@ -3,7 +3,7 @@ use std::fmt;
 use super::super::expression::keyword;
 use super::super::Res;
 use super::{Statement, StatementKind};
-use crate::syntax::template::is_whitespace;
+use crate::syntax::template::{is_whitespace, Template};
 use crate::syntax::Item;
 use crate::Source;
 use nom::bytes::complete::take_while1;
@@ -21,7 +21,7 @@ pub struct Extends<'a> {
     data_type: Type,
     blocks: Vec<String>,
     path: Source<'a>,
-    items: Vec<Item<'a>>,
+    template: Template<'a>,
 }
 
 impl fmt::Debug for Extends<'_> {
@@ -30,7 +30,7 @@ impl fmt::Debug for Extends<'_> {
             // .field("data_type", &"UNSUPPORTED_SORRY")
             .field("blocks", &self.blocks)
             .field("path", &self.path)
-            .field("items", &self.items)
+            .field("template", &self.template)
             .finish()
     }
 }
@@ -40,10 +40,10 @@ impl<'a> Extends<'a> {
         #[allow(clippy::match_same_arms)]
         match &mut item {
             // Comments are fine to keep
-            Item::Comment => self.items.push(item),
+            Item::Comment => self.template.0.push(item),
 
             // Compile errors must be kept
-            Item::CompileError(_, _) => self.items.push(item),
+            Item::CompileError(_, _) => self.template.0.push(item),
 
             // Whitespace should be ignored
             Item::Whitespace(_) => (),
@@ -52,12 +52,12 @@ impl<'a> Extends<'a> {
             Item::Statement(Statement {
                 kind: StatementKind::Block(_),
                 ..
-            }) => self.items.push(item),
-            Item::Statement(_) => todo!(),
+            }) => self.template.0.push(item),
+            Item::Statement(_) => unimplemented!("Statements are not allowed here. Only comments, whitespace, and blocks are allowed."),
 
             // No static text or writs allowed
-            Item::Static(_) => todo!(),
-            Item::Writ(_) => todo!(),
+            Item::Static(_) => unimplemented!("Text is not allowed here. Only comments, whitespace, and blocks are allowed."),
+            Item::Writ(_) => unimplemented!("Writs are not allowed here. Only comments, whitespace, and blocks are allowed."),
         }
     }
 }
@@ -70,7 +70,7 @@ impl<'a> From<Extends<'a>> for StatementKind<'a> {
 
 impl ToTokens for Extends<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Extends { path, items, .. } = self;
+        let Extends { path, template, .. } = self;
 
         let path = path.as_str();
         let path = ::std::path::PathBuf::from(
@@ -86,7 +86,7 @@ impl ToTokens for Extends<'_> {
         // FIXME: Should also include local vars here I think
         let mut inherited_blocks = vec![];
         let mut new_blocks = vec![];
-        for item in &self.items {
+        for item in &self.template.0 {
             if let Item::Statement(Statement {
                 kind: StatementKind::Block(block),
                 ..
@@ -101,7 +101,7 @@ impl ToTokens for Extends<'_> {
         }
         if self.is_extending {
             tokens.append_all(quote! {
-                #(#items)*
+                #template
                 #[derive(::oxiplate_derive::Oxiplate)]
                 #[oxiplate_extends = include_str!(#path)]
                 struct ExtendingTemplate<'a, F>
@@ -112,8 +112,7 @@ impl ToTokens for Extends<'_> {
                     #(#inherited_blocks: &'a F,)*
                     #(#new_blocks: &'a F,)*
                 }
-            });
-            tokens.append_all(quote! {
+
                 let template = ExtendingTemplate {
                     _data: &self._data,
                     #(#inherited_blocks: &self.#inherited_blocks,)*
@@ -122,7 +121,7 @@ impl ToTokens for Extends<'_> {
             });
         } else {
             tokens.append_all(quote! {
-                #(#items)*
+                #template
                 #[derive(::oxiplate_derive::Oxiplate)]
                 #[oxiplate_extends = include_str!(#path)]
                 struct Template<'a, F>
@@ -134,8 +133,7 @@ impl ToTokens for Extends<'_> {
                     #(#inherited_blocks: &'a F,)*
                     #(#new_blocks: &'a F,)*
                 }
-            });
-            tokens.append_all(quote! {
+
                 let template = Template {
                     _data: self,
                     #(#inherited_blocks: &#inherited_blocks,)*
@@ -174,7 +172,7 @@ pub(super) fn parse_extends(input: Source) -> Res<Source, Statement> {
                 data_type,
                 blocks,
                 path: path.clone(),
-                items: vec![],
+                template: Template(vec![]),
             }
             .into(),
             source: path,

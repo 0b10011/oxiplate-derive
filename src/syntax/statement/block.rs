@@ -1,7 +1,7 @@
 use super::super::expression::{ident, keyword, Identifier};
 use super::super::{Item, Res};
 use super::{Statement, StatementKind};
-use crate::syntax::template::is_whitespace;
+use crate::syntax::template::{is_whitespace, Template};
 use crate::Source;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_while1;
@@ -16,7 +16,7 @@ pub struct Block<'a> {
     pub(super) name: Identifier<'a>,
     pub(super) use_override: bool,
     pub(super) should_output: bool,
-    items: Vec<Item<'a>>,
+    template: Template<'a>,
     pub(super) is_ended: bool,
 }
 
@@ -34,7 +34,7 @@ impl<'a> Block<'a> {
                 self.is_ended = true;
             }
             _ => {
-                self.items.push(item);
+                self.template.0.push(item);
             }
         }
     }
@@ -48,7 +48,7 @@ impl<'a> From<Block<'a>> for StatementKind<'a> {
 
 impl ToTokens for Block<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let Block { name, items, .. } = self;
+        let Block { name, template, .. } = self;
         if self.should_output {
             if self.use_override {
                 tokens.append_all(quote! {
@@ -56,7 +56,7 @@ impl ToTokens for Block<'_> {
                 });
             } else {
                 tokens.append_all(quote! {
-                    #(#items)*
+                    #template
                 });
             }
         } else if self.use_override {
@@ -66,7 +66,7 @@ impl ToTokens for Block<'_> {
         } else {
             tokens.append_all(quote! {
                 let #name = |f: &mut ::std::fmt::Formatter<'_>| -> ::std::fmt::Result {
-                    #(#items)*
+                    #template
                     Ok(())
                 };
             });
@@ -95,7 +95,7 @@ pub(super) fn parse_block(
                     name,
                     use_override,
                     should_output: *should_output_blocks,
-                    items: vec![],
+                    template: Template(vec![]),
                     is_ended: false,
                 }
                 .into(),

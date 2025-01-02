@@ -1,7 +1,7 @@
 use super::super::{expression::expression, Item, Res};
 use super::{State, Statement, StatementKind};
 use crate::syntax::expression::{ident, Identifier};
-use crate::syntax::template::is_whitespace;
+use crate::syntax::template::{is_whitespace, Template};
 use crate::syntax::Expression;
 use crate::Source;
 use nom::bytes::complete::take_while1;
@@ -83,8 +83,8 @@ pub(crate) enum IfType<'a> {
 
 #[derive(Debug)]
 pub(crate) struct If<'a> {
-    pub ifs: Vec<(IfType<'a>, Vec<Item<'a>>)>,
-    pub otherwise: Option<Vec<Item<'a>>>,
+    pub ifs: Vec<(IfType<'a>, Template<'a>)>,
+    pub otherwise: Option<Template<'a>>,
     pub is_ended: bool,
 }
 
@@ -110,7 +110,7 @@ impl<'a> If<'a> {
                     todo!();
                 }
 
-                self.ifs.push((if_type, vec![]));
+                self.ifs.push((if_type, Template(vec![])));
             }
             Item::Statement(Statement {
                 kind: StatementKind::Else,
@@ -123,7 +123,7 @@ impl<'a> If<'a> {
                     todo!();
                 }
 
-                self.otherwise = Some(vec![]);
+                self.otherwise = Some(Template(vec![]));
             }
             Item::Statement(Statement {
                 kind: StatementKind::EndIf,
@@ -135,10 +135,10 @@ impl<'a> If<'a> {
                 if self.is_ended {
                     todo!();
                 }
-                if let Some(items) = &mut self.otherwise {
-                    items.push(item);
+                if let Some(template) = &mut self.otherwise {
+                    template.0.push(item);
                 } else {
-                    self.ifs.last_mut().unwrap().1.push(item);
+                    self.ifs.last_mut().unwrap().1 .0.push(item);
                 }
             }
         }
@@ -154,21 +154,20 @@ impl<'a> From<If<'a>> for StatementKind<'a> {
 impl ToTokens for If<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
         let mut is_elseif = false;
-        for (expression, items) in &self.ifs {
+        for (expression, template) in &self.ifs {
             match expression {
                 IfType::If(expression) => {
                     if is_elseif {
-                        tokens.append_all(quote! { else if #expression { #(#items);* } });
+                        tokens.append_all(quote! { else if #expression { #template } });
                     } else {
-                        tokens.append_all(quote! { if #expression { #(#items);* } });
+                        tokens.append_all(quote! { if #expression { #template } });
                     }
                 }
                 IfType::IfLet(ty, Some(expression)) => {
                     if is_elseif {
-                        tokens
-                            .append_all(quote! { else if let #ty = &#expression { #(#items);* } });
+                        tokens.append_all(quote! { else if let #ty = &#expression { #template } });
                     } else {
-                        tokens.append_all(quote! { if let #ty = &#expression { #(#items);* } });
+                        tokens.append_all(quote! { if let #ty = &#expression { #template } });
                     }
                 }
                 IfType::IfLet(ty, None) => {
@@ -176,17 +175,17 @@ impl ToTokens for If<'_> {
                         .get_ident()
                         .expect("Expressionless if let statements should have an ident available");
                     if is_elseif {
-                        tokens.append_all(quote! { else if let #ty = #expression { #(#items);* } });
+                        tokens.append_all(quote! { else if let #ty = #expression { #template } });
                     } else {
-                        tokens.append_all(quote! { if let #ty = #expression { #(#items);* } });
+                        tokens.append_all(quote! { if let #ty = #expression { #template } });
                     }
                 }
             }
 
             is_elseif = true;
         }
-        if let Some(items) = &self.otherwise {
-            tokens.append_all(quote! { else { #(#items)* } });
+        if let Some(template) = &self.otherwise {
+            tokens.append_all(quote! { else { #template } });
         }
     }
 }
@@ -227,7 +226,7 @@ pub(super) fn parse_if<'a>(state: &'a State) -> impl FnMut(Source) -> Res<Source
             input,
             Statement {
                 kind: If {
-                    ifs: vec![(if_type, vec![])],
+                    ifs: vec![(if_type, Template(vec![]))],
                     otherwise: None,
                     is_ended: false,
                 }

@@ -14,8 +14,7 @@ struct Data {
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for value in &self.values {
-            f.write_fmt(format_args!("{0}", value))?;
-            f.write_fmt(format_args!("{0}", "<br>"))?;
+            f.write_fmt(format_args!("{0}{1}", value, "<br>"))?;
         }
         Ok(())
     }
@@ -78,8 +77,7 @@ struct Accounts {
 impl std::fmt::Display for Accounts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for person in &self.people {
-            f.write_fmt(format_args!("{0}", person.get_name()))?;
-            f.write_fmt(format_args!("{0}", "<br>"))?;
+            f.write_fmt(format_args!("{0}{1}", person.get_name(), "<br>"))?;
         }
         Ok(())
     }
@@ -155,16 +153,11 @@ struct ShadowVariable {
 }
 impl std::fmt::Display for ShadowVariable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{0}", self.value))?;
-        f.write_fmt(format_args!("{0}", "!"))?;
-        f.write_fmt(format_args!("{0}", "\n"))?;
+        f.write_fmt(format_args!("{0}{1}{2}", self.value, "!", "\n"))?;
         for value in &self.values {
-            f.write_fmt(format_args!("{0}", value))?;
-            f.write_fmt(format_args!("{0}", "\n"))?;
+            f.write_fmt(format_args!("{0}{1}", value, "\n"))?;
         }
-        f.write_fmt(format_args!("{0}", self.value))?;
-        f.write_fmt(format_args!("{0}", " "))?;
-        f.write_fmt(format_args!("{0}", "again :D"))?;
+        f.write_fmt(format_args!("{0}{1}{2}", self.value, " ", "again :D"))?;
         Ok(())
     }
 }
@@ -234,8 +227,7 @@ struct Functions {
 impl std::fmt::Display for Functions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for function in &self.functions {
-            f.write_fmt(format_args!("{0}", function()))?;
-            f.write_fmt(format_args!("{0}", "\n"))?;
+            f.write_fmt(format_args!("{0}{1}", function(), "\n"))?;
         }
         Ok(())
     }

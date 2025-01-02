@@ -12,11 +12,12 @@ struct AbsoluteData {
 impl std::fmt::Display for AbsoluteData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let content = |f: &mut ::std::fmt::Formatter<'_>| -> ::std::fmt::Result {
-            f.write_fmt(format_args!("{0}", "<h2>"))?;
-            f.write_fmt(format_args!("{0}", self.title))?;
-            f.write_fmt(format_args!("{0}", "</h2>\n  <div>"))?;
-            f.write_fmt(format_args!("{0}", self.message))?;
-            f.write_fmt(format_args!("{0}", "</div>"))?;
+            f.write_fmt(
+                format_args!(
+                    "{0}{1}{2}{3}{4}", "<h2>", self.title, "</h2>\n  <div>", self
+                    .message, "</div>"
+                ),
+            )?;
             Ok(())
         };
         #[oxiplate_extends = "{% extends \"extends-wrapper.html.oxip\" %}\n\n{% block content -%}\n    Some test content.\n{%- endblock %}\n"]
@@ -46,10 +47,12 @@ impl std::fmt::Display for AbsoluteData {
                     F: Fn(&mut ::std::fmt::Formatter<'_>) -> ::std::fmt::Result,
                 {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                        f.write_fmt(format_args!("{0}", "<!DOCTYPE html>\n<title>"))?;
-                        f.write_fmt(format_args!("{0}", self._data.title))?;
-                        f.write_fmt(format_args!("{0}", "</title>"))?;
-                        f.write_fmt(format_args!("{0}", "\n"))?;
+                        f.write_fmt(
+                            format_args!(
+                                "{0}{1}{2}{3}", "<!DOCTYPE html>\n<title>", self._data
+                                .title, "</title>", "\n"
+                            ),
+                        )?;
                         (self.content)(f)?;
                         f.write_fmt(format_args!("{0}", "\n"))?;
                         Ok(())

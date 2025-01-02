@@ -1,7 +1,7 @@
 use super::super::expression::{ident, keyword, Identifier, Keyword};
 use super::super::{expression::expression, Item, Res};
 use super::{State, Statement, StatementKind};
-use crate::syntax::template::is_whitespace;
+use crate::syntax::template::{is_whitespace, Template};
 use crate::syntax::Expression;
 use crate::Source;
 use nom::bytes::complete::tag;
@@ -20,7 +20,7 @@ pub struct For<'a> {
     ident: Identifier<'a>,
     in_keyword: Keyword<'a>,
     expression: Expression<'a>,
-    items: Vec<Item<'a>>,
+    template: Template<'a>,
     pub(super) is_ended: bool,
 }
 
@@ -38,7 +38,7 @@ impl<'a> For<'a> {
                 self.is_ended = true;
             }
             _ => {
-                self.items.push(item);
+                self.template.0.push(item);
             }
         }
     }
@@ -61,11 +61,11 @@ impl ToTokens for For<'_> {
             ident,
             in_keyword,
             expression,
-            items,
+            template,
             ..
         } = self;
         let ident = syn::Ident::new(ident.0, ident.1.span());
-        tokens.append_all(quote! { #for_keyword #ident #in_keyword #expression { #(#items)* } });
+        tokens.append_all(quote! { #for_keyword #ident #in_keyword #expression { #template } });
     }
 }
 
@@ -95,7 +95,7 @@ pub(super) fn parse_for<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, 
                     ident,
                     in_keyword,
                     expression,
-                    items: vec![],
+                    template: Template(vec![]),
                     is_ended: false,
                 }
                 .into(),

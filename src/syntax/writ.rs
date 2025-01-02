@@ -8,12 +8,26 @@ use nom::error::{context, VerboseError};
 use nom::sequence::{preceded, terminated, tuple};
 use nom::{bytes::complete::take_while, character::complete::char, combinator::opt};
 use proc_macro2::TokenStream;
-use quote::{quote, ToTokens, TokenStreamExt};
+use quote::quote;
 use std::fmt::Debug;
 use syn::token::PathSep;
 use syn::{Path, PathSegment};
 
 pub(crate) struct Writ<'a>(pub Expression<'a>, Option<Path>);
+
+impl Writ<'_> {
+    pub(crate) fn to_token(&self) -> TokenStream {
+        let text = &self.0;
+
+        if self.1.is_none() {
+            return quote! { #text };
+        }
+
+        let escaper = &self.1;
+
+        quote! { ::oxiplate::escapers::escape(&#escaper, #text) }
+    }
+}
 
 impl Debug for Writ<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -27,24 +41,6 @@ impl Debug for Writ<'_> {
 impl<'a> From<Writ<'a>> for Item<'a> {
     fn from(writ: Writ<'a>) -> Self {
         Item::Writ(writ)
-    }
-}
-
-impl ToTokens for Writ<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        let text = &self.0;
-
-        if self.1.is_none() {
-            return tokens.append_all(quote! {
-                write!(f, "{}", #text)?;
-            });
-        }
-
-        let escaper = &self.1;
-
-        tokens.append_all(quote! {
-            write!(f, "{}", ::oxiplate::escapers::escape(&#escaper, #text))?;
-        });
     }
 }
 

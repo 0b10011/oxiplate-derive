@@ -9,14 +9,41 @@ use nom::multi::many0;
 use nom::sequence::tuple;
 use proc_macro2::LineColumn;
 use proc_macro2::TokenStream;
-use quote::{ToTokens, TokenStreamExt};
+use quote::{quote, ToTokens, TokenStreamExt};
 
 #[derive(Debug)]
 pub(crate) struct Template<'a>(pub Vec<Item<'a>>);
 
+impl Template<'_> {
+    #[inline]
+    fn concat_tokens(tokens_to_write: &mut Vec<TokenStream>, tokens: &mut TokenStream) {
+        let expr = String::from(&"{}".repeat(tokens_to_write.len()));
+
+        tokens.append_all(quote! {
+            write!(f, #expr, #(#tokens_to_write),*)?;
+        });
+        tokens_to_write.clear();
+    }
+}
+
 impl ToTokens for Template<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.append_all(&self.0);
+        let mut tokens_to_write = vec![];
+        for item in &self.0 {
+            if let Some(token_to_write) = item.to_token() {
+                if let Some(token_to_write) = token_to_write {
+                    tokens_to_write.push(token_to_write);
+                }
+                continue;
+            } else if !tokens_to_write.is_empty() {
+                Self::concat_tokens(&mut tokens_to_write, tokens);
+            }
+            item.to_tokens(tokens);
+        }
+
+        if !tokens_to_write.is_empty() {
+            Self::concat_tokens(&mut tokens_to_write, tokens);
+        }
     }
 }
 
