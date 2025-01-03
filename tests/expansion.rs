@@ -73,6 +73,7 @@ fn expansion() -> Result<(), Box<dyn Error>> {
             }
         } else {
             std::fs::write(actual_expansion_path, actual_expansion.as_bytes())?;
+            mismatched += 1;
             writeln!(
                 std::io::stdout(),
                 "expansion of {} ... expected/{}.rs is missing",
@@ -83,7 +84,7 @@ fn expansion() -> Result<(), Box<dyn Error>> {
     }
 
     if mismatched > 0 {
-        Err("mismatched")?;
+        Err("One or more expansions test results were mismatched or missing")?;
     }
 
     Ok(())
