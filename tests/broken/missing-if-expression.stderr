@@ -1,5 +1,5 @@
-error: Expected one of: block, endblock, if, elseif, else, endif, for, endfor
- --> tests/broken/missing-if-expression.rs:4:25
+error: Expected an expression after `if`
+ --> tests/broken/missing-if-expression.rs:4:28
   |
 4 | #[oxiplate_inline = "{% if %}"]
-  |                         ^
+  |                            ^

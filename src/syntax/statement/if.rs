@@ -276,7 +276,8 @@ fn parse_if_generic<'a>(state: &'a State) -> impl FnMut(Source) -> Res<Source, I
             };
             Ok((input, IfType::IfLet(ty, expression)))
         } else {
-            let (input, output) = cut(expression(state))(input)?;
+            let (input, output) =
+                context("Expected an expression after `if`", cut(expression(state)))(input)?;
             Ok((input, IfType::If(output)))
         }
     }
