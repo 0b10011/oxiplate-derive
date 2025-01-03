@@ -28,21 +28,17 @@ impl std::fmt::Display for Data {
             if let Some(name) = &self.name {
                 f.write_fmt(
                     format_args!(
-                        "{0}{1}{2}{3}{4}{5}{6}{7}", "Found", " ", count, " ",
-                        "cats named", " ", name, "!"
+                        "{0}{1}{2}{3}{4}", "Found ", count, " cats named ", name, "!"
                     ),
                 )?;
             } else {
-                f.write_fmt(
-                    format_args!("{0}{1}{2}{3}{4}", "Found", " ", count, " ", "cats!"),
-                )?;
+                f.write_fmt(format_args!("{0}{1}{2}", "Found ", count, " cats!"))?;
             }
         } else {
             if let Some(missing_name) = &self.name {
                 f.write_fmt(
                     format_args!(
-                        "{0}{1}{2}{3}{4}", "No cats named", " ", missing_name, " ",
-                        "found :("
+                        "{0}{1}{2}", "No cats named ", missing_name, " found :("
                     ),
                 )?;
             } else {

@@ -8,9 +8,7 @@ use oxiplate_derive::Oxiplate;
 struct AdjustedWhitespace {}
 impl std::fmt::Display for AdjustedWhitespace {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(
-            format_args!("{0}{1}{2}{3}{4}{5}", "Hello", " ", "wo", "r", "ld", "!"),
-        )?;
+        f.write_fmt(format_args!("{0}", "Hello world!"))?;
         Ok(())
     }
 }
@@ -69,8 +67,7 @@ impl std::fmt::Display for WritWhitespaceControl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(
             format_args!(
-                "{0}{1}{2}{3}{4}{5}{6}", "Hello", " ", self.username, " ", "(", self
-                .name, ")!"
+                "{0}{1}{2}{3}{4}", "Hello ", self.username, " (", self.name, ")!"
             ),
         )?;
         Ok(())
@@ -187,7 +184,7 @@ fn writ_preserve_spaceless() {
 struct CommentWhitespaceControl {}
 impl std::fmt::Display for CommentWhitespaceControl {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{0}{1}{2}{3}{4}", "Hello", " ", " ", "(", ")!"))?;
+        f.write_fmt(format_args!("{0}", "Hello  ()!"))?;
         Ok(())
     }
 }
@@ -241,7 +238,7 @@ fn comment_whitespace_control() {
 struct CommentPreserveSpaceless {}
 impl std::fmt::Display for CommentPreserveSpaceless {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{0}{1}", "Hello @", "!"))?;
+        f.write_fmt(format_args!("{0}", "Hello @!"))?;
         Ok(())
     }
 }

@@ -59,7 +59,7 @@ impl std::fmt::Display for AbsoluteData {
                             ),
                         )?;
                         (self.body)(f)?;
-                        f.write_fmt(format_args!("{0}{1}", "</body>", "\n"))?;
+                        f.write_fmt(format_args!("{0}", "</body>\n"))?;
                         Ok(())
                     }
                 }

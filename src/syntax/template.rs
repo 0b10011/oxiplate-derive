@@ -1,5 +1,6 @@
 use crate::State;
 
+use super::item::ItemToken;
 use super::{super::Source, item::parse_tag, r#static::parse_static, Item, Res, Static};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take_while1};
@@ -12,11 +13,36 @@ use proc_macro2::TokenStream;
 use quote::{quote, ToTokens, TokenStreamExt};
 
 #[derive(Debug)]
-pub(crate) struct Template<'a>(pub Vec<Item<'a>>);
+pub(crate) struct Template<'a>(pub(crate) Vec<Item<'a>>);
 
 impl Template<'_> {
     #[inline]
-    fn concat_tokens(tokens_to_write: &mut Vec<TokenStream>, tokens: &mut TokenStream) {
+    fn append_static_tokens(
+        static_tokens_to_write: &mut Vec<TokenStream>,
+        tokens_to_write: &mut Vec<TokenStream>,
+    ) {
+        if static_tokens_to_write.is_empty() {
+            return;
+        }
+
+        tokens_to_write.push(quote! {
+            concat!(#(#static_tokens_to_write),*)
+        });
+        static_tokens_to_write.clear();
+    }
+
+    #[inline]
+    fn write_tokens(
+        static_tokens_to_write: &mut Vec<TokenStream>,
+        tokens_to_write: &mut Vec<TokenStream>,
+        tokens: &mut TokenStream,
+    ) {
+        Self::append_static_tokens(static_tokens_to_write, tokens_to_write);
+
+        if tokens_to_write.is_empty() {
+            return;
+        }
+
         let expr = String::from(&"{}".repeat(tokens_to_write.len()));
 
         tokens.append_all(quote! {
@@ -28,21 +54,25 @@ impl Template<'_> {
 
 impl ToTokens for Template<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+        let mut static_tokens_to_write = vec![];
         let mut tokens_to_write = vec![];
         for item in &self.0 {
-            if let Some(token_to_write) = item.to_token() {
-                if let Some(token_to_write) = token_to_write {
-                    tokens_to_write.push(token_to_write);
+            match item.to_token() {
+                ItemToken::Comment => (),
+                ItemToken::StaticText(token_stream) => static_tokens_to_write.push(token_stream),
+                ItemToken::DynamicText(token_stream) => {
+                    Self::append_static_tokens(&mut static_tokens_to_write, &mut tokens_to_write);
+                    tokens_to_write.push(token_stream);
                 }
-                continue;
-            } else if !tokens_to_write.is_empty() {
-                Self::concat_tokens(&mut tokens_to_write, tokens);
+                ItemToken::Statement(token_stream) => {
+                    Self::write_tokens(&mut static_tokens_to_write, &mut tokens_to_write, tokens);
+                    tokens.append_all(token_stream);
+                }
             }
-            item.to_tokens(tokens);
         }
 
-        if !tokens_to_write.is_empty() {
-            Self::concat_tokens(&mut tokens_to_write, tokens);
+        if !tokens_to_write.is_empty() || !static_tokens_to_write.is_empty() {
+            Self::write_tokens(&mut static_tokens_to_write, &mut tokens_to_write, tokens);
         }
     }
 }

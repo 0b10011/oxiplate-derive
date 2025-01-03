@@ -49,8 +49,8 @@ impl<'a> std::fmt::Display for AbsoluteData<'a> {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                         f.write_fmt(
                             format_args!(
-                                "{0}{1}{2}{3}", "<!DOCTYPE html>\n<title>", self._data
-                                .title, "</title>", "\n"
+                                "{0}{1}{2}", "<!DOCTYPE html>\n<title>", self._data.title,
+                                "</title>\n"
                             ),
                         )?;
                         (self.content)(f)?;

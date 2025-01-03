@@ -153,11 +153,11 @@ struct ShadowVariable {
 }
 impl std::fmt::Display for ShadowVariable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{0}{1}{2}", self.value, "!", "\n"))?;
+        f.write_fmt(format_args!("{0}{1}", self.value, "!\n"))?;
         for value in &self.values {
             f.write_fmt(format_args!("{0}{1}", value, "\n"))?;
         }
-        f.write_fmt(format_args!("{0}{1}{2}", self.value, " ", "again :D"))?;
+        f.write_fmt(format_args!("{0}{1}", self.value, " again :D"))?;
         Ok(())
     }
 }

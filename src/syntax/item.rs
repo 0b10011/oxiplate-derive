@@ -10,7 +10,14 @@ use nom::combinator::{cut, opt};
 use nom::error::VerboseError;
 use nom::sequence::tuple;
 use proc_macro2::TokenStream;
-use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
+use quote::{quote, quote_spanned};
+
+pub(super) enum ItemToken {
+    StaticText(TokenStream),
+    DynamicText(TokenStream),
+    Comment,
+    Statement(TokenStream),
+}
 
 #[derive(Debug)]
 pub(crate) enum Item<'a> {
@@ -23,38 +30,18 @@ pub(crate) enum Item<'a> {
 }
 
 impl Item<'_> {
-    #[allow(clippy::option_option)]
-    pub(super) fn to_token(&self) -> Option<Option<TokenStream>> {
+    pub(super) fn to_token(&self) -> ItemToken {
         match self {
-            Item::Comment => Some(None),
-            Item::Writ(writ) => Some(Some(writ.to_token())),
-            Item::Statement(_statement) => None,
-            Item::Static(text) => Some(Some(text.to_token())),
-            Item::Whitespace(whitespace) => Some(Some(whitespace.to_token())),
-            Item::CompileError(_, _source) => None,
-        }
-    }
-}
-
-impl ToTokens for Item<'_> {
-    fn to_tokens(&self, tokens: &mut TokenStream) {
-        tokens.append_all(match self {
-            Item::Comment => quote! {},
-            Item::Writ(_writ) => {
-                unreachable!("Writs should be handled by `to_token()` instead")
-            }
-            Item::Statement(statement) => quote! { #statement },
-            Item::Static(_text) => {
-                unreachable!("Static text should be handled by `to_token()` instead")
-            }
-            Item::Whitespace(_whitespace) => {
-                unreachable!("Whitespace should be handled by `to_token()` instead")
-            }
+            Item::Comment => ItemToken::Comment,
+            Item::Writ(writ) => ItemToken::DynamicText(writ.to_token()),
+            Item::Statement(statement) => ItemToken::Statement(quote! { #statement }),
+            Item::Static(text) => ItemToken::StaticText(text.to_token()),
+            Item::Whitespace(whitespace) => ItemToken::StaticText(whitespace.to_token()),
             Item::CompileError(text, source) => {
                 let span = source.span();
-                quote_spanned! {span=> compile_error!(#text); }
+                ItemToken::Statement(quote_spanned! {span=> compile_error!(#text); })
             }
-        });
+        }
     }
 }
 
