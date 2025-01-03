@@ -16,19 +16,22 @@ use quote::{quote, ToTokens, TokenStreamExt};
 pub(crate) struct Template<'a>(pub(crate) Vec<Item<'a>>);
 
 impl Template<'_> {
+    /// Returns `true` if a token was written.
     #[inline]
     fn append_static_tokens(
         static_tokens_to_write: &mut Vec<TokenStream>,
         tokens_to_write: &mut Vec<TokenStream>,
-    ) {
+    ) -> bool {
         if static_tokens_to_write.is_empty() {
-            return;
+            return false;
         }
 
         tokens_to_write.push(quote! {
             concat!(#(#static_tokens_to_write),*)
         });
         static_tokens_to_write.clear();
+
+        true
     }
 
     #[inline]
@@ -37,9 +40,18 @@ impl Template<'_> {
         tokens_to_write: &mut Vec<TokenStream>,
         tokens: &mut TokenStream,
     ) {
-        Self::append_static_tokens(static_tokens_to_write, tokens_to_write);
+        let static_token_written =
+            Self::append_static_tokens(static_tokens_to_write, tokens_to_write);
 
         if tokens_to_write.is_empty() {
+            return;
+        }
+
+        if static_token_written && tokens_to_write.len() == 1 {
+            let token = tokens_to_write
+                .pop()
+                .expect("The length should be known at this point");
+            tokens.append_all(quote! { f.write_str(#token)?; });
             return;
         }
 
