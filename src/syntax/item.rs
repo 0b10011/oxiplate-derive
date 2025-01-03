@@ -1,3 +1,5 @@
+use std::ops::RangeTo;
+
 use super::{
     comment::comment, statement::statement, template::whitespace, writ::writ, Res, Statement,
     Static, Writ,
@@ -9,6 +11,7 @@ use nom::character::complete::char;
 use nom::combinator::{cut, opt};
 use nom::error::VerboseError;
 use nom::sequence::tuple;
+use nom::Slice as _;
 use proc_macro2::TokenStream;
 use quote::{quote, quote_spanned};
 
@@ -47,7 +50,7 @@ impl Item<'_> {
             }
             Item::Whitespace(whitespace) => ItemToken::StaticText(whitespace.to_token()),
             Item::CompileError(text, source) => {
-                let span = source.span();
+                let span = source.slice(RangeTo { end: 1 }).span();
                 ItemToken::Statement(quote_spanned! {span=> compile_error!(#text); })
             }
         }
