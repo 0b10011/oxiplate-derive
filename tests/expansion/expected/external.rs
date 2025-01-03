@@ -12,10 +12,7 @@ struct AbsoluteData {
 impl std::fmt::Display for AbsoluteData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.write_fmt(
-            format_args!(
-                "{0}{1}{2}{3}{4}", "<h1>", self.title, "</h1>\n<p>", self.message,
-                "</p>\n"
-            ),
+            format_args!("<h1>{0}</h1>\n<p>{1}</p>\n", self.title, self.message),
         )?;
         Ok(())
     }

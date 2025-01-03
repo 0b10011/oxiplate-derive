@@ -21,7 +21,7 @@ struct Data {
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.check {
-            f.write_fmt(format_args!("{0}", "bar"))?;
+            f.write_str("bar")?;
         } else if let Type::Text(text) = &self.ty {
             f.write_fmt(format_args!("{0}", text))?;
         }

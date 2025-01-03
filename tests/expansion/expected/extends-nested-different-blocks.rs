@@ -13,10 +13,7 @@ impl std::fmt::Display for AbsoluteData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let content = |f: &mut ::std::fmt::Formatter<'_>| -> ::std::fmt::Result {
             f.write_fmt(
-                format_args!(
-                    "{0}{1}{2}{3}{4}", "<h1>", self.title, "</h1>\n  <p>", self.message,
-                    "</p>"
-                ),
+                format_args!("<h1>{0}</h1>\n  <p>{1}</p>", self.title, self.message),
             )?;
             Ok(())
         };
@@ -34,9 +31,9 @@ impl std::fmt::Display for AbsoluteData {
         {
             fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                 let body = |f: &mut ::std::fmt::Formatter<'_>| -> ::std::fmt::Result {
-                    f.write_fmt(format_args!("{0}", "<main>"))?;
+                    f.write_str("<main>")?;
                     (self.content)(f)?;
-                    f.write_fmt(format_args!("{0}", "</main>"))?;
+                    f.write_str("</main>")?;
                     Ok(())
                 };
                 #[oxiplate_extends = "<DOCTYPE html>\n<head>\n  <title>{{ title }}</title>\n</head>\n<body>\n  {%- block body -%}{%- endblock -%}\n</body>\n"]
@@ -54,12 +51,12 @@ impl std::fmt::Display for AbsoluteData {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                         f.write_fmt(
                             format_args!(
-                                "{0}{1}{2}", "<DOCTYPE html>\n<head>\n  <title>", self._data
-                                .title, "</title>\n</head>\n<body>"
+                                "<DOCTYPE html>\n<head>\n  <title>{0}</title>\n</head>\n<body>",
+                                self._data.title
                             ),
                         )?;
                         (self.body)(f)?;
-                        f.write_fmt(format_args!("{0}", "</body>\n"))?;
+                        f.write_str("</body>\n")?;
                         Ok(())
                     }
                 }

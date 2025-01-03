@@ -14,7 +14,7 @@ struct Data {
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for value in &self.values {
-            f.write_fmt(format_args!("{0}{1}", value, "<br>"))?;
+            f.write_fmt(format_args!("{0}<br>", value))?;
         }
         Ok(())
     }
@@ -77,7 +77,7 @@ struct Accounts {
 impl std::fmt::Display for Accounts {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for person in &self.people {
-            f.write_fmt(format_args!("{0}{1}", person.get_name(), "<br>"))?;
+            f.write_fmt(format_args!("{0}<br>", person.get_name()))?;
         }
         Ok(())
     }
@@ -153,11 +153,11 @@ struct ShadowVariable {
 }
 impl std::fmt::Display for ShadowVariable {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{0}{1}", self.value, "!\n"))?;
+        f.write_fmt(format_args!("{0}!\n", self.value))?;
         for value in &self.values {
-            f.write_fmt(format_args!("{0}{1}", value, "\n"))?;
+            f.write_fmt(format_args!("{0}\n", value))?;
         }
-        f.write_fmt(format_args!("{0}{1}", self.value, " again :D"))?;
+        f.write_fmt(format_args!("{0} again :D", self.value))?;
         Ok(())
     }
 }
@@ -227,7 +227,7 @@ struct Functions {
 impl std::fmt::Display for Functions {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         for function in &self.functions {
-            f.write_fmt(format_args!("{0}{1}", function(), "\n"))?;
+            f.write_fmt(format_args!("{0}\n", function()))?;
         }
         Ok(())
     }

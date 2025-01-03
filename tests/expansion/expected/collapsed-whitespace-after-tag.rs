@@ -12,9 +12,9 @@ struct Data {
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.value {
-            f.write_fmt(format_args!("{0}", "foo"))?;
+            f.write_str("foo")?;
         }
-        f.write_fmt(format_args!("{0}", " "))?;
+        f.write_str(" ")?;
         Ok(())
     }
 }

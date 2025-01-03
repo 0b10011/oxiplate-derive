@@ -13,10 +13,7 @@ impl<'a> std::fmt::Display for AbsoluteData<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let content = |f: &mut ::std::fmt::Formatter<'_>| -> ::std::fmt::Result {
             f.write_fmt(
-                format_args!(
-                    "{0}{1}{2}{3}{4}", "<h2>", self.title, "</h2>\n  <div>", self
-                    .message, "</div>"
-                ),
+                format_args!("<h2>{0}</h2>\n  <div>{1}</div>", self.title, self.message),
             )?;
             Ok(())
         };
@@ -49,12 +46,11 @@ impl<'a> std::fmt::Display for AbsoluteData<'a> {
                     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
                         f.write_fmt(
                             format_args!(
-                                "{0}{1}{2}", "<!DOCTYPE html>\n<title>", self._data.title,
-                                "</title>\n"
+                                "<!DOCTYPE html>\n<title>{0}</title>\n", self._data.title
                             ),
                         )?;
                         (self.content)(f)?;
-                        f.write_fmt(format_args!("{0}", "\n"))?;
+                        f.write_str("\n")?;
                         Ok(())
                     }
                 }

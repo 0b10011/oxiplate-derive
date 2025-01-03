@@ -17,9 +17,9 @@ struct Data {
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         if self.do_this {
-            f.write_fmt(format_args!("{0}{1}{2}", "This then ", self.action, " :D"))?;
+            f.write_fmt(format_args!("This then {0} :D", self.action))?;
         } else {
-            f.write_fmt(format_args!("{0}{1}{2}", "Can\'t ", self.action, " :("))?;
+            f.write_fmt(format_args!("Can\'t {0} :(", self.action))?;
         }
         Ok(())
     }

@@ -16,75 +16,52 @@ use quote::{quote, ToTokens, TokenStreamExt};
 pub(crate) struct Template<'a>(pub(crate) Vec<Item<'a>>);
 
 impl Template<'_> {
-    /// Returns `true` if a token was written.
-    #[inline]
-    fn append_static_tokens(
-        static_tokens_to_write: &mut Vec<TokenStream>,
-        tokens_to_write: &mut Vec<TokenStream>,
-    ) -> bool {
-        if static_tokens_to_write.is_empty() {
-            return false;
-        }
-
-        tokens_to_write.push(quote! {
-            concat!(#(#static_tokens_to_write),*)
-        });
-        static_tokens_to_write.clear();
-
-        true
-    }
-
     #[inline]
     fn write_tokens(
-        static_tokens_to_write: &mut Vec<TokenStream>,
-        tokens_to_write: &mut Vec<TokenStream>,
+        format_tokens: &mut Vec<TokenStream>,
+        argument_tokens: &mut Vec<TokenStream>,
         tokens: &mut TokenStream,
     ) {
-        let static_token_written =
-            Self::append_static_tokens(static_tokens_to_write, tokens_to_write);
-
-        if tokens_to_write.is_empty() {
+        if format_tokens.is_empty() && argument_tokens.is_empty() {
             return;
         }
 
-        if static_token_written && tokens_to_write.len() == 1 {
-            let token = tokens_to_write
-                .pop()
-                .expect("The length should be known at this point");
-            tokens.append_all(quote! { f.write_str(#token)?; });
+        let format_concat_tokens = quote! { concat!(#(#format_tokens),*) };
+        format_tokens.clear();
+
+        if argument_tokens.is_empty() {
+            tokens.append_all(quote! { f.write_str(#format_concat_tokens)?; });
             return;
         }
-
-        let expr = String::from(&"{}".repeat(tokens_to_write.len()));
 
         tokens.append_all(quote! {
-            write!(f, #expr, #(#tokens_to_write),*)?;
+            write!(f, #format_concat_tokens, #(#argument_tokens),*)?;
         });
-        tokens_to_write.clear();
+        argument_tokens.clear();
     }
 }
 
 impl ToTokens for Template<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let mut static_tokens_to_write = vec![];
-        let mut tokens_to_write = vec![];
+        let mut format_tokens = vec![];
+        let mut argument_tokens = vec![];
         for item in &self.0 {
             match item.to_token() {
                 ItemToken::Comment => (),
-                ItemToken::StaticText(token_stream) => static_tokens_to_write.push(token_stream),
+                ItemToken::StaticText(token_stream) => format_tokens.push(token_stream),
                 ItemToken::DynamicText(token_stream) => {
-                    Self::append_static_tokens(&mut static_tokens_to_write, &mut tokens_to_write);
-                    tokens_to_write.push(token_stream);
+                    format_tokens.push(quote!("{}"));
+                    argument_tokens.push(token_stream);
                 }
                 ItemToken::Statement(token_stream) => {
-                    Self::write_tokens(&mut static_tokens_to_write, &mut tokens_to_write, tokens);
+                    Self::write_tokens(&mut format_tokens, &mut argument_tokens, tokens);
                     tokens.append_all(token_stream);
                 }
             }
         }
 
-        if !tokens_to_write.is_empty() || !static_tokens_to_write.is_empty() {
-            Self::write_tokens(&mut static_tokens_to_write, &mut tokens_to_write, tokens);
+        if !argument_tokens.is_empty() || !format_tokens.is_empty() {
+            Self::write_tokens(&mut format_tokens, &mut argument_tokens, tokens);
         }
     }
 }
