@@ -92,7 +92,7 @@ impl ToTokens for Extends<'_> {
                 ..
             }) = item
             {
-                if self.blocks.contains(&block.name.0.to_string()) {
+                if self.blocks.contains(&block.name.ident.to_string()) {
                     inherited_blocks.push(&block.name);
                 } else {
                     new_blocks.push(&block.name);

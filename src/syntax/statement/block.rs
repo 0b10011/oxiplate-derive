@@ -86,7 +86,7 @@ pub(super) fn parse_block(
         )))(input)?;
 
         let source = block_keyword.0.clone();
-        let use_override = input.original.blocks.contains(&name.0.to_string());
+        let use_override = input.original.blocks.contains(&name.ident.to_string());
 
         Ok((
             input,

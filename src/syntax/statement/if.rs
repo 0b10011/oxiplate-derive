@@ -28,7 +28,7 @@ pub(crate) struct Type<'a>(
 impl<'a> Type<'a> {
     pub fn get_variables(&self) -> HashSet<&'a str> {
         match self {
-            Type(_, _, TypeOrIdent::Identifier(ident)) => HashSet::from([ident.0]),
+            Type(_, _, TypeOrIdent::Identifier(ident)) => HashSet::from([ident.ident]),
             Type(_, _, TypeOrIdent::Type(ty)) => ty.get_variables(),
         }
     }

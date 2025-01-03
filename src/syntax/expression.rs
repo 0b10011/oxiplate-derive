@@ -9,7 +9,7 @@ use nom::error::context;
 use nom::multi::{many0, many_till};
 use nom::sequence::{pair, terminated, tuple};
 use proc_macro2::TokenStream;
-use quote::{format_ident, quote, quote_spanned, ToTokens, TokenStreamExt};
+use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
 
 // #[derive(Debug, PartialEq)]
 // // https://doc.rust-lang.org/reference/expressions/literal-expr.html
@@ -57,13 +57,30 @@ pub(super) fn keyword<'a>(
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub(crate) struct Identifier<'a>(pub &'a str, pub Source<'a>);
+pub(crate) struct Identifier<'a> {
+    pub ident: &'a str,
+    pub source: Source<'a>,
+}
 
 impl ToTokens for Identifier<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
-        let ident = format_ident!("{}", self.0);
-        let span = self.1.span();
-        tokens.append_all(quote_spanned! {span=> #ident });
+        let ident = match self.ident.to_ascii_lowercase().as_str() {
+            keyword @ ("self" | "super") => panic!("{keyword} cannot be a raw identifier"),
+
+            // Keywords from <https://doc.rust-lang.org/reference/keywords.html>.
+            // Prefix with `r#` so Rust will accept them as idents.
+            "abstract" | "as" | "async" | "await" | "become" | "box" | "break" | "const"
+            | "continue" | "crate" | "do" | "dyn" | "else" | "enum" | "extern" | "false"
+            | "final" | "fn" | "for" | "if" | "impl" | "in" | "let" | "loop" | "macro"
+            | "macro_rules" | "match" | "mod" | "move" | "mut" | "override" | "priv" | "pub"
+            | "ref" | "return" | "static" | "struct" | "trait" | "true" | "try" | "type"
+            | "typeof" | "union" | "unsafe" | "unsized" | "use" | "virtual" | "where" | "while"
+            | "yield" => syn::Ident::new_raw(self.ident, self.source.span()),
+
+            _ => syn::Ident::new(self.ident, self.source.span()),
+        };
+
+        tokens.append_all(quote! { #ident });
     }
 }
 
@@ -76,7 +93,13 @@ pub(super) fn ident(input: Source) -> Res<Source, Identifier> {
     let (input, ident) = cut(take_while1(
         |char: char| matches!(char, 'a'..='z' | 'A'..='Z' | '0'..='9' | '_'),
     ))(input)?;
-    Ok((input, Identifier(ident.as_str(), ident)))
+    Ok((
+        input,
+        Identifier {
+            ident: ident.as_str(),
+            source: ident,
+        },
+    ))
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -93,11 +116,25 @@ pub enum IdentifierScope {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub struct IdentField<'a>(
-    Vec<Identifier<'a>>,
-    IdentifierOrFunction<'a>,
-    IdentifierScope,
-);
+pub struct IdentField<'a> {
+    parents: Vec<Identifier<'a>>,
+    ident_or_function: IdentifierOrFunction<'a>,
+    scope: IdentifierScope,
+}
+
+impl<'a> IdentField<'a> {
+    pub fn new(
+        parents: Vec<Identifier<'a>>,
+        ident_or_function: IdentifierOrFunction<'a>,
+        scope: IdentifierScope,
+    ) -> Self {
+        Self {
+            parents,
+            ident_or_function,
+            scope,
+        }
+    }
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Expression<'a> {
@@ -105,6 +142,7 @@ pub(crate) enum Expression<'a> {
     FieldAccess(IdentField<'a>),
     String(Source<'a>),
     Number(Source<'a>),
+    Bool(bool, Source<'a>),
     // Group(Box<Expression<'a>>),
     Calc(Box<Expression<'a>>, Operator<'a>, Box<Expression<'a>>),
     Prefixed(PrefixOperator, Box<Expression<'a>>),
@@ -115,8 +153,7 @@ impl ToTokens for Expression<'_> {
         tokens.append_all(match self {
             Expression::Identifier(identifier, scope) => match &identifier {
                 IdentifierOrFunction::Identifier(identifier) => {
-                    let span = identifier.1.span();
-                    let identifier = syn::Ident::new(identifier.0, span);
+                    let span = identifier.source.span();
                     match scope {
                         IdentifierScope::Local => quote_spanned! {span=> #identifier },
                         IdentifierScope::Parent => quote_spanned! {span=> self.#identifier },
@@ -124,8 +161,7 @@ impl ToTokens for Expression<'_> {
                     }
                 }
                 IdentifierOrFunction::Function(identifier) => {
-                    let span = identifier.1.span();
-                    let identifier = syn::Ident::new(identifier.0, span);
+                    let span = identifier.source.span();
                     match scope {
                         IdentifierScope::Local => quote_spanned! {span=> #identifier() },
                         IdentifierScope::Parent => quote_spanned! {span=> self.#identifier() },
@@ -134,19 +170,14 @@ impl ToTokens for Expression<'_> {
                 }
             },
             Expression::FieldAccess(field) => {
-                let mut parents = Vec::with_capacity(field.0.len());
-                let parent_identifiers = &field.0;
-                for parent in parent_identifiers {
-                    parents.push(syn::Ident::new(parent.0, parent.1.span()));
-                }
-                match &field.1 {
+                let parents = &field.parents;
+                match &field.ident_or_function {
                     IdentifierOrFunction::Identifier(identifier) => {
-                        let span = identifier.1.span();
-                        for parent in parent_identifiers {
-                            span.join(parent.1.span());
+                        let span = identifier.source.span();
+                        for parent in parents {
+                            span.join(parent.source.span());
                         }
-                        let identifier = syn::Ident::new(identifier.0, span);
-                        match field.2 {
+                        match field.scope {
                             IdentifierScope::Local => {
                                 quote_spanned! {span=> #(#parents.)*#identifier }
                             }
@@ -159,12 +190,11 @@ impl ToTokens for Expression<'_> {
                         }
                     }
                     IdentifierOrFunction::Function(identifier) => {
-                        let span = identifier.1.span();
-                        for parent in parent_identifiers {
-                            span.join(parent.1.span());
+                        let span = identifier.source.span();
+                        for parent in parents {
+                            span.join(parent.source.span());
                         }
-                        let identifier = syn::Ident::new(identifier.0, span);
-                        match field.2 {
+                        match field.scope {
                             IdentifierScope::Local => {
                                 quote_spanned! {span=> #(#parents.)*#identifier() }
                             }
@@ -191,6 +221,10 @@ impl ToTokens for Expression<'_> {
                 quote! {
                     #number
                 }
+            }
+            Expression::Bool(bool, source) => {
+                let bool = ::syn::LitBool::new(*bool, source.span());
+                quote! { #bool }
             }
         });
     }
@@ -296,6 +330,7 @@ pub(super) fn expression<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source,
         alt((
             string,
             number,
+            bool,
             calc(state),
             field_or_identifier(state),
             prefixed_expression(state),
@@ -310,7 +345,7 @@ fn field_or_identifier<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, E
             pair(&ident, opt(tag("()"))),
         )(input)?;
 
-        let ident_str = ident.0;
+        let ident_str = ident.ident;
         let field = if maybe_function.is_some() {
             IdentifierOrFunction::Function(ident)
         } else {
@@ -338,14 +373,14 @@ fn field_or_identifier<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, E
         let mut is_local = None;
         for parent in parsed_parents {
             if is_local.is_none() {
-                is_local = Some(state.local_variables.contains(parent.0));
+                is_local = Some(state.local_variables.contains(parent.ident));
             }
             parents.push(parent);
         }
 
         Ok((
             input,
-            Expression::FieldAccess(IdentField(
+            Expression::FieldAccess(IdentField::new(
                 parents,
                 field,
                 if is_local.unwrap_or(false) {
@@ -398,6 +433,19 @@ fn operator(input: Source) -> Res<Source, Operator> {
 
     Ok((input, operator))
 }
+
+/// Parses a bool value: `true` or `false`
+fn bool(input: Source) -> Res<Source, Expression> {
+    let (input, source) = alt((tag("true"), tag("false")))(input)?;
+    let bool = match source.as_str() {
+        "true" => true,
+        "false" => false,
+        _ => unreachable!("All cases should be covered"),
+    };
+
+    Ok((input, Expression::Bool(bool, source)))
+}
+
 fn number(input: Source) -> Res<Source, Expression> {
     // TODO: Add support for _ separatation
     // TODO: Add support for other number types? (e.g., 0b10011)

@@ -44,7 +44,7 @@ impl<'a> For<'a> {
     }
 
     pub(crate) fn get_active_variables(&self) -> HashSet<&'a str> {
-        HashSet::from([self.ident.0])
+        HashSet::from([self.ident.ident])
     }
 }
 
@@ -64,7 +64,6 @@ impl ToTokens for For<'_> {
             template,
             ..
         } = self;
-        let ident = syn::Ident::new(ident.0, ident.1.span());
         tokens.append_all(quote! { #for_keyword #ident #in_keyword #expression { #template } });
     }
 }

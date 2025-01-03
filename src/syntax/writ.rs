@@ -54,21 +54,21 @@ impl Escaper {
         escaper: Identifier<'a>,
     ) -> Result<Option<Path>, nom::Err<VerboseError<Source<'a>>>> {
         let group = if let Some(group) = group {
-            Some((group.0, group.1))
+            Some((group.ident, group.source))
         } else if let Some(default_group) = &state.config.default_escaper_group {
-            Some((default_group.as_str(), escaper.1.clone()))
+            Some((default_group.as_str(), escaper.source.clone()))
         } else {
             None
         };
         let Some(group) = group else {
-            if escaper.0 == "raw" {
+            if escaper.ident == "raw" {
                 return Ok(None);
             }
 
             context(
                 r#"No default escaper group defined and the specified escaper is not "raw""#,
                 fail::<_, (), _>,
-            )(escaper.1.clone())?;
+            )(escaper.source.clone())?;
             unreachable!("fail() should always bail early");
         };
 
@@ -79,9 +79,9 @@ impl Escaper {
 
         // Strip underscores and capitalize first character at the beginning and after underscores.
         // That is, `hello_world` becomes `HelloWorld`.
-        let mut escaper_variant = String::with_capacity(escaper.0.len());
+        let mut escaper_variant = String::with_capacity(escaper.ident.len());
         let mut capitalize_next = true;
-        for char in escaper.0.chars() {
+        for char in escaper.ident.chars() {
             match (capitalize_next, char) {
                 (_, '_') => capitalize_next = true,
                 (true, _) => {
@@ -104,7 +104,7 @@ impl Escaper {
             }
         }
 
-        context("Invalid escaper specified", fail::<_, (), _>)(escaper.1)?;
+        context("Invalid escaper specified", fail::<_, (), _>)(escaper.source)?;
         unreachable!("fail() should always bail early");
     }
 
