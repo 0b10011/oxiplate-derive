@@ -7,6 +7,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.5](https://github.com/0b10011/oxiplate-derive/compare/v0.1.4...v0.1.5) - 2025-01-03
+
+### Added
+
+- added support for rust keywords as identifiers and cleaned up code along the way
+- improved error message for missing `if` expression
+- shortened source range for errors that don't provide a span
+
+### Other
+
+- changed expansion tests to fail when the expected output for a test is missing
+
 ## [0.1.4](https://github.com/0b10011/oxiplate-derive/compare/v0.1.3...v0.1.4) - 2025-01-03
 
 ### Added
