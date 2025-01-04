@@ -27,6 +27,22 @@ pub const clippy: test::TestDescAndFn = test::TestDescAndFn {
     testfn: test::StaticTestFn(#[coverage(off)] || test::assert_test_result(clippy())),
 };
 fn clippy() -> Result<(), Box<dyn Error>> {
+    let Output { status, stdout: _stdout, stderr } = Command::new("cargo")
+        .args(["build", "--manifest-path", "tests/clippy/Cargo.toml"])
+        .output()?;
+    if !status.success() {
+        Err(
+            ::alloc::__export::must_use({
+                let res = ::alloc::fmt::format(
+                    format_args!(
+                        "Failed to build clippy tests. STDERR: {0}",
+                        String::from_utf8_lossy(& stderr)
+                    ),
+                );
+                res
+            }),
+        )?;
+    }
     let expected_destination = Path::new("tests/clippy/expected/");
     let actual_destination = Path::new("tests/clippy/actual/");
     let mut mismatched = 0;

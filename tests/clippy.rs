@@ -8,6 +8,21 @@ use std::{
 
 #[test]
 fn clippy() -> Result<(), Box<dyn Error>> {
+    // Build before running tests for consistent test output
+    let Output {
+        status,
+        stdout: _stdout,
+        stderr,
+    } = Command::new("cargo")
+        .args(["build", "--manifest-path", "tests/clippy/Cargo.toml"])
+        .output()?;
+    if !status.success() {
+        Err(format!(
+            "Failed to build clippy tests. STDERR: {}",
+            String::from_utf8_lossy(&stderr),
+        ))?;
+    }
+
     let expected_destination = Path::new("tests/clippy/expected/");
     let actual_destination = Path::new("tests/clippy/actual/");
     let mut mismatched = 0;
