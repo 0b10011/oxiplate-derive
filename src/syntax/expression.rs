@@ -4,12 +4,13 @@ use crate::{Source, State};
 use nom::branch::alt;
 use nom::bytes::complete::{tag, take, take_while, take_while1};
 use nom::character::complete::char;
-use nom::combinator::{cut, not, opt, peek};
+use nom::combinator::{cut, fail, not, opt, peek};
 use nom::error::context;
 use nom::multi::{many0, many_till};
-use nom::sequence::{pair, terminated, tuple};
-use proc_macro2::TokenStream;
+use nom::sequence::{pair, tuple};
+use proc_macro2::{Group, TokenStream};
 use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
+use syn::token::Dot;
 
 // #[derive(Debug, PartialEq)]
 // // https://doc.rust-lang.org/reference/expressions/literal-expr.html
@@ -105,7 +106,24 @@ pub(super) fn ident(input: Source) -> Res<Source, Identifier> {
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum IdentifierOrFunction<'a> {
     Identifier(Identifier<'a>),
-    Function(Identifier<'a>),
+    Function(Identifier<'a>, Source<'a>),
+}
+impl ToTokens for IdentifierOrFunction<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        match self {
+            IdentifierOrFunction::Identifier(identifier) => {
+                tokens.append_all(quote! { #identifier });
+            }
+            IdentifierOrFunction::Function(identifier, parens) => {
+                let span = parens.span();
+                let mut parens =
+                    Group::new(proc_macro2::Delimiter::Parenthesis, TokenStream::new());
+                parens.set_span(span);
+
+                tokens.append_all(quote! { #identifier #parens });
+            }
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -122,30 +140,35 @@ pub struct IdentField<'a> {
     scope: IdentifierScope,
 }
 
-impl<'a> IdentField<'a> {
-    pub fn new(
-        parents: Vec<Identifier<'a>>,
-        ident_or_function: IdentifierOrFunction<'a>,
-        scope: IdentifierScope,
-    ) -> Self {
-        Self {
-            parents,
-            ident_or_function,
-            scope,
-        }
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct Field<'a> {
+    dot: Source<'a>,
+    ident_or_fn: IdentifierOrFunction<'a>,
+}
+impl ToTokens for Field<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let span = self.dot.span();
+        let dot = syn::parse2::<Dot>(quote_spanned! {span=> . })
+            .expect("Dot should be able to be parsed properly here");
+
+        let ident_or_fn = &self.ident_or_fn;
+        tokens.append_all(quote! { #dot #ident_or_fn });
     }
 }
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum Expression<'a> {
     Identifier(IdentifierOrFunction<'a>, IdentifierScope),
-    FieldAccess(IdentField<'a>),
     String(Source<'a>),
     Number(Source<'a>),
     Bool(bool, Source<'a>),
     // Group(Box<Expression<'a>>),
-    Calc(Box<Expression<'a>>, Operator<'a>, Box<Expression<'a>>),
-    Prefixed(PrefixOperator, Box<Expression<'a>>),
+    Calc(
+        Box<ExpressionAccess<'a>>,
+        Operator<'a>,
+        Box<ExpressionAccess<'a>>,
+    ),
+    Prefixed(PrefixOperator, Box<ExpressionAccess<'a>>),
 }
 
 impl ToTokens for Expression<'_> {
@@ -160,54 +183,24 @@ impl ToTokens for Expression<'_> {
                         IdentifierScope::Data => quote_spanned! {span=> self._data.#identifier },
                     }
                 }
-                IdentifierOrFunction::Function(identifier) => {
+                IdentifierOrFunction::Function(identifier, parens) => {
+                    let span = parens.span();
+                    let mut parens =
+                        Group::new(proc_macro2::Delimiter::Parenthesis, TokenStream::new());
+                    parens.set_span(span);
+
                     let span = identifier.source.span();
                     match scope {
-                        IdentifierScope::Local => quote_spanned! {span=> #identifier() },
-                        IdentifierScope::Parent => quote_spanned! {span=> self.#identifier() },
-                        IdentifierScope::Data => quote_spanned! {span=> self._data.#identifier() },
+                        IdentifierScope::Local => quote_spanned! {span=> #identifier #parens },
+                        IdentifierScope::Parent => {
+                            quote_spanned! {span=> self.#identifier #parens }
+                        }
+                        IdentifierScope::Data => {
+                            quote_spanned! {span=> self._data.#identifier #parens }
+                        }
                     }
                 }
             },
-            Expression::FieldAccess(field) => {
-                let parents = &field.parents;
-                match &field.ident_or_function {
-                    IdentifierOrFunction::Identifier(identifier) => {
-                        let span = identifier.source.span();
-                        for parent in parents {
-                            span.join(parent.source.span());
-                        }
-                        match field.scope {
-                            IdentifierScope::Local => {
-                                quote_spanned! {span=> #(#parents.)*#identifier }
-                            }
-                            IdentifierScope::Parent => {
-                                quote_spanned! {span=> self.#(#parents.)*#identifier }
-                            }
-                            IdentifierScope::Data => {
-                                quote_spanned! {span=> self._data.#(#parents.)*#identifier }
-                            }
-                        }
-                    }
-                    IdentifierOrFunction::Function(identifier) => {
-                        let span = identifier.source.span();
-                        for parent in parents {
-                            span.join(parent.source.span());
-                        }
-                        match field.scope {
-                            IdentifierScope::Local => {
-                                quote_spanned! {span=> #(#parents.)*#identifier() }
-                            }
-                            IdentifierScope::Parent => {
-                                quote_spanned! {span=> self.#(#parents.)*#identifier() }
-                            }
-                            IdentifierScope::Data => {
-                                quote_spanned! {span=> self._data.#(#parents.)*#identifier() }
-                            }
-                        }
-                    }
-                }
-            }
             Expression::Calc(left, operator, right) => quote!(#left #operator #right),
             Expression::Prefixed(operator, expression) => quote!(#operator #expression),
             Expression::String(string) => {
@@ -227,6 +220,19 @@ impl ToTokens for Expression<'_> {
                 quote! { #bool }
             }
         });
+    }
+}
+
+#[derive(Debug, PartialEq, Eq)]
+pub(crate) struct ExpressionAccess<'a> {
+    expression: Expression<'a>,
+    fields: Vec<Field<'a>>,
+}
+impl ToTokens for ExpressionAccess<'_> {
+    fn to_tokens(&self, tokens: &mut TokenStream) {
+        let expression = &self.expression;
+        let fields = &self.fields;
+        tokens.append_all(quote! { #expression #(#fields)* });
     }
 }
 
@@ -325,73 +331,67 @@ impl ToTokens for PrefixOperator {
     }
 }
 
-pub(super) fn expression<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, Expression> + 'a {
-    |input| {
-        alt((
-            string,
-            number,
-            bool,
-            calc(state),
-            field_or_identifier(state),
-            prefixed_expression(state),
-        ))(input)
+pub(super) fn expression<'a>(
+    state: &'a State,
+    allow_calc: bool,
+) -> impl Fn(Source) -> Res<Source, ExpressionAccess> + 'a {
+    move |input| {
+        let (input, (expression, fields)) = pair(
+            alt((
+                string,
+                number,
+                bool,
+                calc(state, allow_calc),
+                identifier(state),
+                prefixed_expression(state),
+            )),
+            many0(field()),
+        )(input)?;
+
+        Ok((input, ExpressionAccess { expression, fields }))
     }
 }
 
-fn field_or_identifier<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, Expression> + 'a {
+fn identifier<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, Expression> + 'a {
     |input| {
-        let (input, (parsed_parents, (ident, maybe_function))) = pair(
-            many0(terminated(&ident, char('.'))),
-            pair(&ident, opt(tag("()"))),
-        )(input)?;
+        let (input, (ident, parens)) = pair(&ident, opt(tag("()")))(input)?;
 
         let ident_str = ident.ident;
-        let field = if maybe_function.is_some() {
-            IdentifierOrFunction::Function(ident)
+        let field = if let Some(parens) = parens {
+            IdentifierOrFunction::Function(ident, parens)
         } else {
             IdentifierOrFunction::Identifier(ident)
         };
         let is_extending = input.original.is_extending;
-
-        if parsed_parents.is_empty() {
-            return Ok((
-                input,
-                Expression::Identifier(
-                    field,
-                    if state.local_variables.contains(ident_str) {
-                        IdentifierScope::Local
-                    } else if is_extending {
-                        IdentifierScope::Data
-                    } else {
-                        IdentifierScope::Parent
-                    },
-                ),
-            ));
-        }
-
-        let mut parents = Vec::with_capacity(parsed_parents.len());
-        let mut is_local = None;
-        for parent in parsed_parents {
-            if is_local.is_none() {
-                is_local = Some(state.local_variables.contains(parent.ident));
-            }
-            parents.push(parent);
-        }
+        let is_local = state.local_variables.contains(ident_str);
 
         Ok((
             input,
-            Expression::FieldAccess(IdentField::new(
-                parents,
+            Expression::Identifier(
                 field,
-                if is_local.unwrap_or(false) {
+                if is_local {
                     IdentifierScope::Local
                 } else if is_extending {
                     IdentifierScope::Data
                 } else {
                     IdentifierScope::Parent
                 },
-            )),
+            ),
         ))
+    }
+}
+
+fn field<'a>() -> impl Fn(Source) -> Res<Source, Field> + 'a {
+    |input| {
+        let (input, (dot, ident, parens)) = tuple((tag("."), &ident, opt(tag("()"))))(input)?;
+
+        let ident_or_fn = if let Some(parens) = parens {
+            IdentifierOrFunction::Function(ident, parens)
+        } else {
+            IdentifierOrFunction::Identifier(ident)
+        };
+
+        Ok((input, Field { dot, ident_or_fn }))
     }
 }
 fn operator(input: Source) -> Res<Source, Operator> {
@@ -473,17 +473,20 @@ fn string(input: Source) -> Res<Source, Expression> {
     };
     Ok((input, Expression::String(full_string)))
 }
-fn calc<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, Expression> + 'a {
-    |input| {
+fn calc<'a>(state: &'a State, allow_calc: bool) -> impl Fn(Source) -> Res<Source, Expression> + 'a {
+    move |input| {
+        if !allow_calc {
+            return fail(input);
+        }
         let (input, (left, _leading_whitespace, (), operator, _trailing_whitespace, right)) =
             tuple((
-                field_or_identifier(state),
+                expression(state, false),
                 opt(whitespace),
                 // End tags like `-}}` and `%}` could be matched by operator; this ensures we can use `cut()` later.
                 not(alt((tag_end("}}"), tag_end("%}"), tag_end("#}")))),
                 operator,
                 opt(whitespace),
-                context("Expected an expression", cut(expression(state))),
+                context("Expected an expression", cut(expression(state, true))),
             ))(input)?;
         Ok((
             input,
@@ -504,7 +507,7 @@ fn prefix_operator(input: Source) -> Res<Source, PrefixOperator> {
 fn prefixed_expression<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, Expression> + 'a {
     |input| {
         let (input, (prefix_operator, expression)) =
-            tuple((prefix_operator, expression(state)))(input)?;
+            tuple((prefix_operator, expression(state, true)))(input)?;
 
         Ok((
             input,

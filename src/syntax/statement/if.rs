@@ -1,8 +1,7 @@
 use super::super::{expression::expression, Item, Res};
 use super::{State, Statement, StatementKind};
-use crate::syntax::expression::{ident, Identifier};
+use crate::syntax::expression::{ident, ExpressionAccess, Identifier};
 use crate::syntax::template::{is_whitespace, Template};
-use crate::syntax::Expression;
 use crate::Source;
 use nom::bytes::complete::take_while1;
 use nom::bytes::complete::{tag, take_while};
@@ -77,8 +76,8 @@ pub(crate) enum TypeOrIdent<'a> {
 
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) enum IfType<'a> {
-    If(Expression<'a>),
-    IfLet(Type<'a>, Option<Expression<'a>>),
+    If(ExpressionAccess<'a>),
+    IfLet(Type<'a>, Option<ExpressionAccess<'a>>),
 }
 
 #[derive(Debug)]
@@ -257,7 +256,10 @@ fn parse_if_generic<'a>(state: &'a State) -> impl FnMut(Source) -> Res<Source, I
                         char('='),
                         preceded(
                             &ws0,
-                            context("Expected an expression after `=`", cut(expression(state))),
+                            context(
+                                "Expected an expression after `=`",
+                                cut(expression(state, true)),
+                            ),
                         ),
                     ),
                 ))(input)?
@@ -268,7 +270,10 @@ fn parse_if_generic<'a>(state: &'a State) -> impl FnMut(Source) -> Res<Source, I
                         context("Expected `=`", cut(char('='))),
                         preceded(
                             &ws0,
-                            context("Expected an expression after `=`", cut(expression(state))),
+                            context(
+                                "Expected an expression after `=`",
+                                cut(expression(state, true)),
+                            ),
                         ),
                     ),
                 )(input)?;
@@ -276,8 +281,10 @@ fn parse_if_generic<'a>(state: &'a State) -> impl FnMut(Source) -> Res<Source, I
             };
             Ok((input, IfType::IfLet(ty, expression)))
         } else {
-            let (input, output) =
-                context("Expected an expression after `if`", cut(expression(state)))(input)?;
+            let (input, output) = context(
+                "Expected an expression after `if`",
+                cut(expression(state, true)),
+            )(input)?;
             Ok((input, IfType::If(output)))
         }
     }

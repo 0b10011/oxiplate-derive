@@ -1,8 +1,8 @@
 use super::super::expression::{ident, keyword, Identifier, Keyword};
 use super::super::{expression::expression, Item, Res};
 use super::{State, Statement, StatementKind};
+use crate::syntax::expression::ExpressionAccess;
 use crate::syntax::template::{is_whitespace, Template};
-use crate::syntax::Expression;
 use crate::Source;
 use nom::bytes::complete::tag;
 use nom::bytes::complete::take_while1;
@@ -19,7 +19,7 @@ pub struct For<'a> {
     for_keyword: Keyword<'a>,
     ident: Identifier<'a>,
     in_keyword: Keyword<'a>,
-    expression: Expression<'a>,
+    expression: ExpressionAccess<'a>,
     template: Template<'a>,
     pub(super) is_ended: bool,
 }
@@ -81,7 +81,10 @@ pub(super) fn parse_for<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, 
             ),
             context("Expected 'in'", keyword("in")),
             context("Expected space after 'in'", take_while1(is_whitespace)),
-            context("Expected an expression that is iterable", expression(state)),
+            context(
+                "Expected an expression that is iterable",
+                expression(state, true),
+            ),
         )))(input)?;
 
         let source = for_keyword.0.clone();

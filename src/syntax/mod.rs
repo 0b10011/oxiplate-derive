@@ -11,7 +11,6 @@ use nom::IResult;
 
 type Res<T, U> = IResult<T, U, VerboseError<T>>;
 
-use expression::Expression;
 use item::Item;
 use r#static::Static;
 use statement::Statement;

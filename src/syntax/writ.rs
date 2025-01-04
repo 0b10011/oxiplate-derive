@@ -1,7 +1,5 @@
-use super::expression::{ident, Identifier};
-use super::{
-    expression::expression, item::tag_end, template::is_whitespace, Expression, Item, Res, Static,
-};
+use super::expression::{ident, ExpressionAccess, Identifier};
+use super::{expression::expression, item::tag_end, template::is_whitespace, Item, Res, Static};
 use crate::{Source, State};
 use nom::combinator::{cut, fail};
 use nom::error::{context, VerboseError};
@@ -13,7 +11,7 @@ use std::fmt::Debug;
 use syn::token::PathSep;
 use syn::{Path, PathSegment};
 
-pub(crate) struct Writ<'a>(pub Expression<'a>, Option<Path>);
+pub(crate) struct Writ<'a>(pub ExpressionAccess<'a>, Option<Path>);
 
 impl Writ<'_> {
     pub(crate) fn to_token(&self) -> TokenStream {
@@ -129,7 +127,8 @@ pub(super) fn writ<'a>(
         } else {
             Escaper::default(state)
         };
-        let (input, output) = context("Expected an expression.", cut(expression(state)))(input)?;
+        let (input, output) =
+            context("Expected an expression.", cut(expression(state, true)))(input)?;
         let (input, trailing_whitespace) = context(
             "Expecting the writ tag to be closed with `_}}`, `-}}`, or `}}`.",
             cut(preceded(take_while(is_whitespace), cut(tag_end("}}")))),
