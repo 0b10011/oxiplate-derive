@@ -12,18 +12,6 @@ use proc_macro2::{Group, TokenStream};
 use quote::{quote, quote_spanned, ToTokens, TokenStreamExt};
 use syn::token::Dot;
 
-// #[derive(Debug, PartialEq)]
-// // https://doc.rust-lang.org/reference/expressions/literal-expr.html
-// enum Literal<'a> {
-//     Char(char),
-//     String(&'a str),
-//     Byte(u8),
-//     ByteString(&'a Vec<u8>),
-//     Integer(i64),
-//     Float(f64),
-//     Boolean(bool),
-// }
-
 #[derive(Debug, PartialEq, Eq)]
 pub(crate) struct Keyword<'a>(pub Source<'a>);
 

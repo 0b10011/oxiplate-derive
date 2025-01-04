@@ -26,7 +26,6 @@ use proc_macro::TokenStream;
 use proc_macro2::Literal;
 use proc_macro2::Span;
 use quote::quote;
-use quote::ToTokens;
 use serde::Deserialize;
 use std::collections::HashMap;
 use std::collections::HashSet;
@@ -285,19 +284,6 @@ impl Slice<RangeTo<usize>> for Source<'_> {
                 end: self.range.start + new_range.end,
             },
         }
-    }
-}
-
-impl ToTokens for Source<'_> {
-    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        use quote::TokenStreamExt;
-        let text = self.as_str();
-        let span = self
-            .original
-            .literal
-            .subspan(self.range.clone())
-            .expect("No subspan found");
-        tokens.append_all(quote::quote_spanned! {span=> write!(f, "{}", #text)?;});
     }
 }
 
