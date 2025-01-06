@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.8](https://github.com/0b10011/oxiplate-derive/compare/v0.1.7...v0.1.8) - 2025-01-06
+
+### Added
+
+- improved error message when a string is not closed properly
+- improve error message when there's no expression after a prefix operator
+- not (`!`) operator
+
+### Other
+
+- generate docs when running `cargo dev`
+- ensure only static string slices are accepted for tag ends
+
 ## [0.1.7](https://github.com/0b10011/oxiplate-derive/compare/v0.1.6...v0.1.7) - 2025-01-04
 
 ### Fixed
