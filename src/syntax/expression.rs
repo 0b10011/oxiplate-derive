@@ -503,8 +503,13 @@ fn prefix_operator(input: Source) -> Res<Source, PrefixOperator> {
 }
 fn prefixed_expression<'a>(state: &'a State) -> impl Fn(Source) -> Res<Source, Expression> + 'a {
     |input| {
-        let (input, (prefix_operator, expression)) =
-            tuple((prefix_operator, expression(state, true)))(input)?;
+        let (input, (prefix_operator, expression)) = tuple((
+            prefix_operator,
+            context(
+                "Expected an expression after prefix operator",
+                cut(expression(state, true)),
+            ),
+        ))(input)?;
 
         Ok((
             input,
