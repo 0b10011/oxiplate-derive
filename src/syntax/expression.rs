@@ -450,12 +450,14 @@ fn number(input: Source) -> Res<Source, Expression> {
     Ok((input, Expression::Number(number)))
 }
 fn string(input: Source) -> Res<Source, Expression> {
-    let (input, opening_hashes) = take_while(|c| c == '#')(input)?;
-
-    let (input, _) = char('"')(input)?;
+    let (input, (opening_hashes, _opening_quote)) =
+        pair(take_while(|c| c == '#'), char('"'))(input)?;
 
     let closing = pair(char('"'), tag(opening_hashes.as_str()));
-    let (input, (string, _)) = many_till(take(1u32), closing)(input)?;
+    let (input, (string, _)) = context(
+        r#"String is opened but never closed. The string ending must be a double quote (") followed by the same number of hashes (#) as the string opening."#,
+        cut(many_till(take(1u32), closing)),
+    )(input)?;
     let (input, _closing_hashes) = tag(opening_hashes.as_str())(input)?;
 
     let full_string = if let Some(full_string) = string.first() {
