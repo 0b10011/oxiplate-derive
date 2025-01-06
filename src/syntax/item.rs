@@ -117,7 +117,7 @@ pub(crate) fn tag_start(input: Source) -> Res<Source, (Option<Static>, TagOpen)>
 }
 
 pub(crate) fn tag_end<'a>(
-    tag_close: &'a str,
+    tag_close: &'static str,
 ) -> impl Fn(Source<'a>) -> Res<Source<'a>, Option<Static<'a>>> + 'a {
     move |input| {
         if let Ok((input, _tag)) = tag::<_, _, VerboseError<_>>(tag_close)(input.clone()) {
