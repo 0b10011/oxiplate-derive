@@ -5,7 +5,7 @@ use std::prelude::rust_2021::*;
 extern crate std;
 use oxiplate_derive::Oxiplate;
 #[oxiplate_inline = "
-{%- if ref.is_empty() == false -%}
+{%- if !ref.is_empty() -%}
     Referee: {{ ref }}
 {%- else -%}
     {{ else }}
@@ -16,7 +16,7 @@ struct Data {
 }
 impl std::fmt::Display for Data {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        if self.r#ref.is_empty() == false {
+        if !self.r#ref.is_empty() {
             f.write_fmt(format_args!("Referee: {0}", self.r#ref))?;
         } else {
             f.write_fmt(format_args!("{0}", self.r#else))?;

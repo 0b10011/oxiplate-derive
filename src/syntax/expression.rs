@@ -156,7 +156,7 @@ pub(crate) enum Expression<'a> {
         Operator<'a>,
         Box<ExpressionAccess<'a>>,
     ),
-    Prefixed(PrefixOperator, Box<ExpressionAccess<'a>>),
+    Prefixed(PrefixOperator<'a>, Box<ExpressionAccess<'a>>),
 }
 
 impl ToTokens for Expression<'_> {
@@ -305,16 +305,24 @@ impl ToTokens for Operator<'_> {
 }
 
 #[derive(Debug, PartialEq, Eq)]
-pub enum PrefixOperator {
-    Borrow,
-    Dereference,
+pub enum PrefixOperator<'a> {
+    Borrow(Source<'a>),
+    Dereference(Source<'a>),
+    Not(Source<'a>),
 }
 
-impl ToTokens for PrefixOperator {
+impl ToTokens for PrefixOperator<'_> {
     fn to_tokens(&self, tokens: &mut TokenStream) {
+        macro_rules! op {
+            ($source: ident, $op: tt) => {{
+                let span = $source.span();
+                quote_spanned! {span=> $op }
+            }};
+        }
         tokens.append_all(match self {
-            PrefixOperator::Borrow => quote!(&),
-            PrefixOperator::Dereference => quote!(*),
+            Self::Borrow(source) => op!(source, &),
+            Self::Dereference(source) => op!(source, *),
+            Self::Not(source) => op!(source, !),
         });
     }
 }
@@ -483,10 +491,11 @@ fn calc<'a>(state: &'a State, allow_calc: bool) -> impl Fn(Source) -> Res<Source
     }
 }
 fn prefix_operator(input: Source) -> Res<Source, PrefixOperator> {
-    let (input, operator) = alt((tag("&"), tag("*")))(input)?;
+    let (input, operator) = alt((tag("&"), tag("*"), tag("!")))(input)?;
     let operator = match operator.as_str() {
-        "&" => PrefixOperator::Borrow,
-        "*" => PrefixOperator::Dereference,
+        "&" => PrefixOperator::Borrow(operator),
+        "*" => PrefixOperator::Dereference(operator),
+        "!" => PrefixOperator::Not(operator),
         _ => unreachable!("All cases should be covered"),
     };
 

@@ -2,7 +2,7 @@ use oxiplate_derive::Oxiplate;
 
 #[derive(Oxiplate)]
 #[oxiplate_inline = "
-{%- if ref.is_empty() == false -%}
+{%- if !ref.is_empty() -%}
     Referee: {{ ref }}
 {%- else -%}
     {{ else }}
